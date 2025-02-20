@@ -133,4 +133,8 @@ async function submitEdit(event) {
     }
 }
 
-// Adaugă evenimentele necesare
+const PORT = process.env.PORT || 8080;  // Folosește portul dat de Render
+app.listen(PORT, () => {
+    console.log(`Serverul rulează pe portul ${PORT}`);
+});
+
