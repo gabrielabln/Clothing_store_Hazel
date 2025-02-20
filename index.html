@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAZEL</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="welcome">
+        <h1>HAZEL</h1>
+    </div>
+
+    <div class="grupare">
+    <div class="filters">
+        <h2>Filtrează produse:</h2>
+        <form id="filter-form">
+            <input type="text" id="filter-name" placeholder="Căutare după nume" />
+            <input type="number" id="filter-price" placeholder="Căutare după preț" />
+            <button type="submit">Aplică filtre</button>
+        </form>
+    </div>
+
+    
+    <div class="formular">
+        <!-- Formular pentru adăugarea unui produs -->
+        <h2>Adaugă produs:</h2>
+        <form id="add-product-form">
+            <input type="text" id="product-name" placeholder="Nume produs" required>
+            <input type="number" id="product-price" placeholder="Preț produs" required>
+            <input type="file" id="imagine" accept="image/jpeg" required>
+            <button type="submit">Adaugă produs</button>
+        </form>
+    </div>
+    <div class="formular1" id="edit-product-container" style="display: none;">
+        <h2>Editează produs:</h2>
+        <form id="edit-product-form">
+            <input type="hidden" id="edit-product-id">
+            <input type="text" id="edit-product-name" placeholder="Nume produs" required>
+            <input type="number" id="edit-product-price" placeholder="Preț produs" required>
+            <button type="submit">Salvează</button>
+        </form>
+    </div>
+</div>
+    <div class="produse">
+        <section id="products">
+            <!-- Produsele vor fi afișate aici -->
+        </section>
+    </div>        
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
