@@ -1,122 +1,141 @@
-const express = require('express');
-const { Sequelize, DataTypes } = require('sequelize');
-const path = require('path');
+const BACKEND_URL = "https://clothing-store-hazel.onrender.com";
 
-const app = express();
-app.use(express.static(path.join(__dirname))); // Servește fișierele statice
-app.use(express.json()); // Middleware pentru JSON
-
-// Configurarea bazei de date SQLite
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: 'products.db',
-});
-
-// Definirea modelului pentru produse
-const Product = sequelize.define('Product', {
-    name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    price: {
-        type: DataTypes.FLOAT,
-        allowNull: false,
-    },
-    image: {
-        type: DataTypes.TEXT,
-        allowNull: false,
-    },
-});
-
-// Sincronizarea bazei de date
-sequelize.sync({ alter: true }).then(() => {
-    console.log('Baza de date sincronizată.');
-}).catch((err) => {
-    console.error('Eroare la sincronizarea bazei de date:', err);
-});
-
-// Rute backend
-app.get('/products', async (req, res) => {
-  try {
-      const { name, price } = req.query; // Preia filtrele din query string
-      console.log('Filtre primite din query:', { name, price }); // Log pentru debugging
-
-      // Inițializează obiectul `where`
-      const where = {};
-
-      // Adaugă condiții pentru `name`
-      if (name && name.trim() !== '') {
-          where.name = { [Sequelize.Op.like]: `%${name}%` };
-          console.log('Filtru adăugat pentru nume:', where.name);
-      }
-
-      // Adaugă condiții pentru `price`
-      if (price && !isNaN(parseFloat(price))) {
-          where.price = { [Sequelize.Op.lte]: parseFloat(price) };
-          console.log('Filtru adăugat pentru preț:', where.price);
-      }
-
-      console.log('Obiectul WHERE final:', where); // Verifică condițiile finale
-
-      // Obține produsele filtrate
-      const products = await Product.findAll({ where });
-      res.json(products);
-  } catch (error) {
-      console.error('Eroare la obținerea produselor:', error);
-      res.status(500).json({ message: 'Eroare la obținerea produselor.', error });
-  }
-});
-
-
-
-
-app.post('/products', async (req, res) => {
+// Funcția pentru a obține produsele de la backend
+async function fetchProducts() {
     try {
-        const { name, price, image } = req.body;
-        const newProduct = await Product.create({ name, price, image });
-        res.status(201).json(newProduct);
+        const response = await fetch(`${BACKEND_URL}/products`);
+        const products = await response.json();
+
+        const productsContainer = document.getElementById('products');
+        productsContainer.innerHTML = products.map(product => `
+            <div class="product">
+                <img src="${product.image}" alt="${product.name}">
+                <h3>${product.name}</h3>
+                <p>Preț: ${product.price} RON</p>
+                <button class="delete-button" data-id="${product.id}">Șterge</button>
+                <button class="edit-button" data-id="${product.id}" data-name="${product.name}" data-price="${product.price}">Editează</button>
+            </div>
+        `).join('');
+
+        // Adaugă event listeners pentru butoanele de ștergere și editare
+        document.querySelectorAll('.delete-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = this.getAttribute('data-id');
+                deleteProduct(productId);
+            });
+        });
+
+        document.querySelectorAll('.edit-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = this.getAttribute('data-id');
+                const productName = this.getAttribute('data-name');
+                const productPrice = this.getAttribute('data-price');
+                editProduct(productId, productName, productPrice);
+            });
+        });
+
     } catch (error) {
-        res.status(400).json({ message: 'Eroare la adăugarea produsului.', error });
+        console.error('Eroare la obținerea produselor:', error);
     }
-});
+}
 
-app.delete('/products/:id', async (req, res) => {
+// Funcția pentru a trimite un produs nou către backend
+async function addProduct(event) {
+    event.preventDefault();
+    const name = document.getElementById('product-name').value;
+    const price = parseFloat(document.getElementById('product-price').value);
+    const imageInput = document.getElementById('imagine').files[0];
+
+    if (!imageInput) {
+        console.error('Nu a fost selectată nicio imagine!');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        const imageBase64 = reader.result;
+        sendProductToBackend(name, price, imageBase64);
+    };
+    reader.readAsDataURL(imageInput);
+}
+
+// Funcția pentru a trimite cererea POST către backend
+async function sendProductToBackend(name, price, image) {
     try {
-        const { id } = req.params;
-        const product = await Product.findByPk(id);
-        if (product) {
-            await product.destroy();
-            res.status(200).json({ message: 'Produs șters!' });
+        const response = await fetch(`${BACKEND_URL}/products`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, price, image })
+        });
+
+        if (response.ok) {
+            fetchProducts();
+            document.getElementById('add-product-form').reset();
         } else {
-            res.status(404).json({ message: 'Produsul nu a fost găsit!' });
+            console.error('Eroare la adăugarea produsului:', await response.text());
         }
     } catch (error) {
-        res.status(500).json({ message: 'Eroare la ștergerea produsului.', error });
+        console.error('Eroare la comunicarea cu serverul:', error);
     }
-});
+}
 
-// Rota pentru update
-app.put('/products/:id', async (req, res) => {
-  try {
-      const { id } = req.params; // Obține ID-ul din URL
-      const { name, price } = req.body; // Obține datele din corpul cererii
+// Funcția pentru a șterge un produs
+async function deleteProduct(productId) {
+    try {
+        const response = await fetch(`${BACKEND_URL}/products/${productId}`, {
+            method: 'DELETE',
+        });
 
-      // Caută produsul în baza de date
-      const product = await Product.findByPk(id);
-      if (product) {
-          // Actualizează datele produsului
-          product.name = name;
-          product.price = price;
-          await product.save();
-          res.status(200).json(product); // Răspuns succes
-      } else {
-          res.status(404).json({ message: 'Produsul nu a fost găsit!' });
-      }
-  } catch (error) {
-      res.status(500).json({ message: 'Eroare la actualizarea produsului.', error });
-  }
-});
+        if (response.ok) {
+            fetchProducts();
+        } else {
+            console.error('Eroare la ștergerea produsului:', await response.text());
+        }
+    } catch (error) {
+        console.error('Eroare la comunicarea cu serverul:', error);
+    }
+}
 
-app.listen(8080, () => {
-    console.log('Serverul rulează la http://localhost:8080');
-});
+// Funcția pentru a edita un produs
+function editProduct(id, currentName, currentPrice) {
+    const editForm = document.getElementById('edit-product-container');
+    editForm.style.display = 'block';
+
+    document.getElementById('edit-product-id').value = id;
+    document.getElementById('edit-product-name').value = currentName;
+    document.getElementById('edit-product-price').value = currentPrice;
+}
+
+// Funcția pentru a salva editarea unui produs
+async function submitEdit(event) {
+    event.preventDefault();
+
+    const id = document.getElementById('edit-product-id').value;
+    const name = document.getElementById('edit-product-name').value;
+    const price = parseFloat(document.getElementById('edit-product-price').value);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/products/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, price }),
+        });
+
+        if (response.ok) {
+            fetchProducts();
+            document.getElementById('edit-product-form').reset();
+            document.getElementById('edit-product-container').style.display = 'none';
+        } else {
+            console.error('Eroare la actualizarea produsului:', await response.text());
+        }
+    } catch (error) {
+        console.error('Eroare la comunicarea cu serverul:', error);
+    }
+}
+
+// Adaugă evenimentele necesare
+window.onload = () => {
+    fetchProducts();
+    document.getElementById('add-product-form').onsubmit = addProduct;
+    document.getElementById('edit-product-form').onsubmit = submitEdit;
+};
