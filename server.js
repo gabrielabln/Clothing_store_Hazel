@@ -134,8 +134,3 @@ async function submitEdit(event) {
 }
 
 // Adaugă evenimentele necesare
-window.onload = () => {
-    fetchProducts();
-    document.getElementById('add-product-form').onsubmit = addProduct;
-    document.getElementById('edit-product-form').onsubmit = submitEdit;
-};
